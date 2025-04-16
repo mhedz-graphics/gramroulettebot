@@ -175,44 +175,6 @@ Deno.addSignalListener("SIGINT", () => bot.stop());
 Deno.addSignalListener("SIGTERM", () => bot.stop());
 
 // Move all command handlers before bot.start()
-bot.hears("📊 Status", async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-    
-    let status = "📊 Current Status:\n";
-    if (chatPairs.has(userId)) {
-        status += "- You are in an active chat\n";
-    } else if (waitingUsers.has(userId)) {
-        status += "- You are waiting for a partner\n";
-    } else {
-        status += "- You are not in a chat\n";
-    }
-    
-    status += `- Users waiting: ${waitingUsers.size}\n`;
-    status += `- Active chats: ${chatPairs.size / 2}`;
-    
-    await ctx.reply(status);
-});
-
-bot.hears("💰 Tokens", async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-    await ctx.reply(await formatTokensMessage(userId));
-});
-
-bot.hears("❓ Help", async (ctx) => {
-    await ctx.reply("Available commands:\n" +
-        "🔍 /search - Find a chat partner\n" +
-        "❌ /stop - End current chat\n" +
-        "⚠️ /report - Report user\n" +
-        "📊 /status - Check current status\n" +
-        "💰 /tokens - Check your tokens\n" +
-        "🎫 /refer <code> - Use referral code\n" +
-        "❓ /help - Show this help");
-});
-
-// Add search command handler
-bot.command("search", (ctx) => searchPartner(ctx));
-
-// Add stop command handler
-bot.command("stop", (ctx) => stopChat(ctx));
+// REMOVE these duplicate handlers at the bottom of the file:
+// bot.hears("📊 Status", async (ctx) => { ... });
+// bot.hears("💰 Tokens", async (ctx) => { ... });
