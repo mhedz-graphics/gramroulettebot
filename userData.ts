@@ -2,9 +2,10 @@ interface User {
     tokens: number;
     dailyChats: number;
     referralCode: string;
+    ratings: number[];
+    averageRating: number;
 }
 
-// Use Map for in-memory storage
 const users = new Map<number, User>();
 
 export async function getUser(userId: number): Promise<User> {
@@ -12,10 +13,18 @@ export async function getUser(userId: number): Promise<User> {
         users.set(userId, {
             tokens: 0,
             dailyChats: 0,
-            referralCode: generateReferralCode()
+            referralCode: generateReferralCode(),
+            ratings: [],
+            averageRating: 5 // Default rating
         });
     }
     return users.get(userId)!;
+}
+
+export async function addRating(userId: number, rating: number): Promise<void> {
+    const user = await getUser(userId);
+    user.ratings.push(rating);
+    user.averageRating = user.ratings.reduce((a, b) => a + b, 0) / user.ratings.length;
 }
 
 export async function registerChat(userId: number): Promise<boolean> {

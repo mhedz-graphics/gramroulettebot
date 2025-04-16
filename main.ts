@@ -33,17 +33,124 @@ await bot.api.setMyCommands([
 bot.command("start", async (ctx) => {
     await ctx.reply("Welcome to GramRoulette bot! 👋\nSelect an option:", {
         reply_markup: new Keyboard([
-            ["🔍 Search Partner", "❌ End Chat"],
-            ["⚠️ Report", "📊 Status"],
-            ["💰 Tokens", "❓ Help"]
+            ["🔍 Search Chat", "🚫 Stop Search"],
+            ["❌ End Chat", "⭐ My Rating"]
         ])
         .resized()
     });
 });
 
 // Handle keyboard button actions
-bot.hears("🔍 Search Partner", async (ctx) => await searchPartner(ctx));
+bot.hears("🔍 Search Chat", async (ctx) => await searchPartner(ctx));
+bot.hears("🚫 Stop Search", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    
+    if (waitingUsers.delete(userId)) {
+        await ctx.reply("✅ Search cancelled.");
+    } else {
+        await ctx.reply("❌ You were not searching for a chat.");
+    }
+});
 bot.hears("❌ End Chat", async (ctx) => await stopChat(ctx));
+bot.hears("⭐ My Rating", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    const user = await userData.getUser(userId);
+    await ctx.reply(`Your average rating: ${user.averageRating.toFixed(1)}⭐\nBased on ${user.ratings.length} ratings`);
+});
+
+// Modify searchPartner to match by rating
+const searchPartner = async (ctx: Context) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    
+    if (chatPairs.has(userId)) {
+        return await ctx.reply("❌ You are already in a chat. Use 'End Chat' to end it first.");
+    }
+
+    if (waitingUsers.has(userId)) {
+        return await ctx.reply("⏳ You are already in the waiting list.");
+    }
+
+    const currentUser = await userData.getUser(userId);
+    
+    // Find best match from waiting users
+    let bestMatch = null;
+    let smallestRatingDiff = Infinity;
+    
+    for (const waitingId of waitingUsers) {
+        if (waitingId !== userId) {
+            const waitingUser = await userData.getUser(waitingId);
+            const ratingDiff = Math.abs(currentUser.averageRating - waitingUser.averageRating);
+            if (ratingDiff < smallestRatingDiff) {
+                smallestRatingDiff = ratingDiff;
+                bestMatch = waitingId;
+            }
+        }
+    }
+
+    if (bestMatch) {
+        waitingUsers.delete(bestMatch);
+        chatPairs.set(userId, bestMatch);
+        chatPairs.set(bestMatch, userId);
+        
+        await ctx.reply("✅ Chat partner found! You can start chatting now.");
+        await bot.api.sendMessage(bestMatch, "✅ Chat partner found! You can start chatting now.");
+        return;
+    }
+
+    waitingUsers.add(userId);
+    await ctx.reply("🔍 Searching for a chat partner... Please wait.");
+};
+
+// Modify stopChat to include rating
+const stopChat = async (ctx: Context) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    
+    if (!chatPairs.has(userId)) {
+        waitingUsers.delete(userId);
+        return await ctx.reply("❌ You are not in a chat.");
+    }
+
+    const partnerId = chatPairs.get(userId);
+    if (!partnerId) return;
+    
+    chatPairs.delete(userId);
+    chatPairs.delete(partnerId);
+
+    // Create inline keyboard for rating
+    const ratingKeyboard = new InlineKeyboard();
+    for (let i = 1; i <= 5; i++) {
+        ratingKeyboard.text(`${i}⭐`, `rate_${partnerId}_${i}`);
+    }
+    ratingKeyboard.row();
+    for (let i = 6; i <= 10; i++) {
+        ratingKeyboard.text(`${i}⭐`, `rate_${partnerId}_${i}`);
+    }
+    
+    if (await userData.registerChat(userId)) {
+        await ctx.reply("✅ Chat ended. You earned 10 tokens! 🎉\nPlease rate your chat partner:", {
+            reply_markup: ratingKeyboard
+        });
+    }
+    await bot.api.sendMessage(partnerId, "❌ Your chat partner has disconnected.");
+};
+
+// Add rating callback handler
+bot.callbackQuery(/rate_(\d+)_(\d+)/, async (ctx) => {
+    const match = ctx.callbackQuery.data.match(/rate_(\d+)_(\d+)/);
+    if (!match) return;
+
+    const ratedUserId = parseInt(match[1]);
+    const rating = parseInt(match[2]);
+    
+    await userData.addRating(ratedUserId, rating);
+    await ctx.reply(`Thanks for rating! You gave ${rating}⭐`);
+    await ctx.answerCallbackQuery();
+});
+
 bot.hears("💰 Tokens", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -74,60 +181,6 @@ bot.hears("⚠️ Report", async (ctx) => {
     }
     await ctx.reply("⚠️ User reported. Moderators will review this case.");
 });
-
-// Handle search for chat partner
-const searchPartner = async (ctx: Context) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-    
-    if (chatPairs.has(userId)) {
-        return await ctx.reply("❌ You are already in a chat. Use /stop to end it first.");
-    }
-
-    if (waitingUsers.has(userId)) {
-        return await ctx.reply("⏳ You are already in the waiting list.");
-    }
-
-    if (waitingUsers.size > 0) {
-        const partnerId = waitingUsers.values().next().value;
-        if (partnerId !== userId) {
-            waitingUsers.delete(partnerId);
-            chatPairs.set(userId, partnerId);
-            chatPairs.set(partnerId, userId);
-            
-            await ctx.reply("✅ Chat partner found! You can start chatting now.");
-            await bot.api.sendMessage(partnerId, "✅ Chat partner found! You can start chatting now.");
-            return;
-        }
-    }
-
-    waitingUsers.add(userId);
-    await ctx.reply("🔍 Searching for a chat partner... Please wait.");
-};
-
-// Handle stop chat
-const stopChat = async (ctx: Context) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-    
-    if (!chatPairs.has(userId)) {
-        waitingUsers.delete(userId);
-        return await ctx.reply("❌ You are not in a chat.");
-    }
-
-    const partnerId = chatPairs.get(userId);
-    if (!partnerId) return;
-    
-    chatPairs.delete(userId);
-    chatPairs.delete(partnerId);
-    
-    if (await userData.registerChat(userId)) {
-        await ctx.reply("✅ Chat ended. You earned 10 tokens! 🎉");
-    } else {
-        await ctx.reply("✅ Chat ended.");
-    }
-    await bot.api.sendMessage(partnerId, "❌ Your chat partner has disconnected.");
-};
 
 // Handle message forwarding
 bot.on("message", async (ctx) => {
@@ -173,8 +226,3 @@ bot.catch((err) => {
 // Add graceful shutdown
 Deno.addSignalListener("SIGINT", () => bot.stop());
 Deno.addSignalListener("SIGTERM", () => bot.stop());
-
-// Move all command handlers before bot.start()
-// REMOVE these duplicate handlers at the bottom of the file:
-// bot.hears("📊 Status", async (ctx) => { ... });
-// bot.hears("💰 Tokens", async (ctx) => { ... });
