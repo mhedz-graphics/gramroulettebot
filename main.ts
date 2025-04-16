@@ -1,4 +1,4 @@
-import { Bot, Keyboard, Context, InlineKeyboard, webhookCallback } from "grammy/mod.ts";
+import { Bot, Keyboard, Context, InlineKeyboard, webhookCallback } from "https://deno.land/x/grammy@v1.19.2/mod.ts";
 import { load } from "https://deno.land/std@0.208.0/dotenv/mod.ts";
 import * as userData from "./userData.ts";
 
