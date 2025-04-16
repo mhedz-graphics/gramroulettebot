@@ -18,16 +18,8 @@ const formatTokensMessage = async (userId: number) => {
            `🎫 Your referral code: ${user.referralCode}`;
 };
 
-// Set up bot commands menu
-await bot.api.setMyCommands([
-    { command: "start", description: "Start the bot" },
-    { command: "search", description: "Search for a chat partner" },
-    { command: "stop", description: "End current chat" },
-    { command: "report", description: "Report user" },
-    { command: "status", description: "Check current status" },
-    { command: "tokens", description: "Check your tokens" },
-    { command: "refer", description: "Use referral code" }
-]);
+// Delete existing commands
+await bot.api.deleteMyCommands();
 
 // Basic command handler with keyboard buttons
 bot.command("start", async (ctx) => {
