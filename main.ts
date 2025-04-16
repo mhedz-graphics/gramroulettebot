@@ -42,9 +42,31 @@ bot.command("start", async (ctx) => {
 });
 
 // Handle keyboard button actions
-// Update keyboard button handlers
 bot.hears("🔍 Search Partner", async (ctx) => await searchPartner(ctx));
 bot.hears("❌ End Chat", async (ctx) => await stopChat(ctx));
+bot.hears("💰 Tokens", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    await ctx.reply(await formatTokensMessage(userId));
+});
+bot.hears("📊 Status", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    
+    let status = "📊 Current Status:\n";
+    if (chatPairs.has(userId)) {
+        status += "- You are in an active chat\n";
+    } else if (waitingUsers.has(userId)) {
+        status += "- You are waiting for a partner\n";
+    } else {
+        status += "- You are not in a chat\n";
+    }
+    
+    status += `- Users waiting: ${waitingUsers.size}\n`;
+    status += `- Active chats: ${chatPairs.size / 2}`;
+    
+    await ctx.reply(status);
+});
 bot.hears("⚠️ Report", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !chatPairs.has(userId)) {
