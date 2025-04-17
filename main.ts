@@ -4,7 +4,13 @@ import { Bot, Keyboard, Context, InlineKeyboard, webhookCallback } from "https:/
 import * as userData from "./userData.ts";
 
 // Replace env loading with direct Deno.env
-const bot = new Bot(Deno.env.get("BOT_TOKEN") || "");
+// Add token verification
+const token = Deno.env.get("BOT_TOKEN");
+if (!token) {
+    console.error("BOT_TOKEN not found in environment variables!");
+    Deno.exit(1);
+}
+const bot = new Bot(token);
 
 // User states and chat pairs
 const waitingUsers = new Set<number>();
@@ -201,11 +207,12 @@ const handleUpdate = webhookCallback(bot, "std/http");
 const handler = async (req: Request): Promise<Response> => {
     if (req.method === "POST") {
         const url = new URL(req.url);
+        console.log("Received request at:", url.pathname);
         if (url.pathname === "/webhook") {
             try {
                 return await handleUpdate(req);
             } catch (err) {
-                console.error(err);
+                console.error("Webhook error:", err);
                 return new Response("Error", { status: 500 });
             }
         }
