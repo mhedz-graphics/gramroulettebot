@@ -1,10 +1,10 @@
 import { Bot, Keyboard, Context, InlineKeyboard, webhookCallback } from "https://deno.land/x/grammy@v1.19.2/mod.ts";
-import { load } from "https://deno.land/std@0.208.0/dotenv/mod.ts";
+// Remove the dotenv import since we'll use Deno.env
+// import { load } from "https://deno.land/std@0.204.0/dotenv/mod.ts";
 import * as userData from "./userData.ts";
 
-// Load environment variables
-const env = await load();
-const bot = new Bot(env["TELEGRAM_BOT_TOKEN"] || "");
+// Replace env loading with direct Deno.env
+const bot = new Bot(Deno.env.get("BOT_TOKEN") || "");
 
 // User states and chat pairs
 const waitingUsers = new Set<number>();
@@ -18,18 +18,24 @@ const formatTokensMessage = async (userId: number) => {
            `🎫 Your referral code: ${user.referralCode}`;
 };
 
-// Delete existing commands
-await bot.api.deleteMyCommands();
+// Remove this line
+// await bot.api.deleteMyCommands();
 
 // Basic command handler with keyboard buttons
 bot.command("start", async (ctx) => {
-    await ctx.reply("Welcome to GramRoulette bot! 👋\nSelect an option:", {
-        reply_markup: new Keyboard([
-            ["🔍 Search Chat", "🚫 Stop Search"],
-            ["❌ End Chat", "⭐ My Rating"]
-        ])
-        .resized()
-    });
+    try {
+        await bot.api.deleteMyCommands();
+        await ctx.reply("Welcome to GramRoulette bot! 👋\nSelect an option:", {
+            reply_markup: new Keyboard([
+                ["🔍 Search Chat", "🚫 Stop Search"],
+                ["❌ End Chat", "⭐ My Rating"]
+            ])
+            .resized()
+        });
+    } catch (error) {
+        console.error("Error in start command:", error);
+        await ctx.reply("Welcome! The bot is starting up...");
+    }
 });
 
 // Handle keyboard button actions
