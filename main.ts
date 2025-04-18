@@ -1,15 +1,15 @@
 import { Bot, Keyboard, Context, InlineKeyboard, webhookCallback } from "https://deno.land/x/grammy@v1.19.2/mod.ts";
-// Remove the dotenv import since we'll use Deno.env
-// import { load } from "https://deno.land/std@0.204.0/dotenv/mod.ts";
 import * as userData from "./userData.ts";
 
-// Replace env loading with direct Deno.env
-// Add token verification
+// Add more detailed token verification
 const token = Deno.env.get("BOT_TOKEN");
 if (!token) {
     console.error("BOT_TOKEN not found in environment variables!");
     Deno.exit(1);
 }
+console.log("Bot token verified successfully");
+
+// Initialize bot with error handling
 const bot = new Bot(token);
 
 // User states and chat pairs
@@ -204,24 +204,34 @@ bot.on("message", async (ctx) => {
 const handleUpdate = webhookCallback(bot, "std/http");
 
 // Replace the Deno.serve section with this:
+// Modify the webhook handler for better error logging
 const handler = async (req: Request): Promise<Response> => {
-    if (req.method === "POST") {
-        const url = new URL(req.url);
-        console.log("Received request at:", url.pathname);
-        if (url.pathname === "/webhook") {
-            try {
-                return await handleUpdate(req);
-            } catch (err) {
-                console.error("Webhook error:", err);
-                return new Response("Error", { status: 500 });
+    try {
+        if (req.method === "POST") {
+            const url = new URL(req.url);
+            console.log("Received webhook request at:", url.pathname);
+            
+            if (url.pathname === "/webhook") {
+                try {
+                    const result = await handleUpdate(req);
+                    console.log("Webhook handled successfully");
+                    return result;
+                } catch (err) {
+                    console.error("Webhook handler error:", err);
+                    return new Response("Webhook Error", { status: 500 });
+                }
             }
         }
+        return new Response("Bot is running", { status: 200 });
+    } catch (err) {
+        console.error("Handler error:", err);
+        return new Response("Server Error", { status: 500 });
     }
-    return new Response("Bot is running", { status: 200 });
 };
 
+// Add startup logging
 Deno.serve(handler);
-console.log("Webhook server running on port 8000");
+console.log("Bot webhook server running on port 8000");
 
 // Add error handling
 bot.catch((err) => {
